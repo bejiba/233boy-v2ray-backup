@@ -10,7 +10,7 @@ none='\e[0m'
 # Root
 [[ $(id -u) != 0 ]] && echo -e " 哎呀……请使用 ${red}root ${none}用户运行 ${yellow}~(^_^) ${none}" && exit 1
 
-_version="v3.42"
+_version="v3.26"
 
 cmd="apt-get"
 
@@ -21,20 +21,20 @@ i[36]86)
 	v2ray_bit="32"
 	caddy_arch="386"
 	;;
-'amd64' | x86_64)
+x86_64)
 	v2ray_bit="64"
 	caddy_arch="amd64"
 	;;
 *armv6*)
-	v2ray_bit="arm32-v6"
+	v2ray_bit="arm"
 	caddy_arch="arm6"
 	;;
 *armv7*)
-	v2ray_bit="arm32-v7a"
+	v2ray_bit="arm"
 	caddy_arch="arm7"
 	;;
 *aarch64* | *armv8*)
-	v2ray_bit="arm64-v8a"
+	v2ray_bit="arm64"
 	caddy_arch="arm64"
 	;;
 *)
@@ -69,7 +69,7 @@ fi
 if [[ $mark != "v3" ]]; then
 	. /etc/v2ray/233boy/v2ray/tools/v3.sh
 fi
-if [[ $v2ray_transport -ge 18 && $v2ray_transport -ne 33 ]]; then
+if [[ $v2ray_transport -ge 18 ]]; then
 	dynamicPort=true
 	port_range="${v2ray_dynamicPort_start}-${v2ray_dynamicPort_end}"
 fi
@@ -103,7 +103,7 @@ if [ $v2ray_pid ]; then
 else
 	v2ray_status="$red未在运行$none"
 fi
-if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy_pid && $caddy ]]; then
+if [[ $v2ray_transport == [45] && $caddy ]] && [[ $caddy_pid ]]; then
 	caddy_run_status="$green正在运行$none"
 else
 	caddy_run_status="$red未在运行$none"
@@ -130,36 +130,36 @@ create_vmess_URL_config() {
 
 	if [[ $v2ray_transport == [45] ]]; then
 		cat >/etc/v2ray/vmess_qr.json <<-EOF
-			{
-				"v": "2",
-				"ps": "233v2.com_${domain}",
-				"add": "${domain}",
-				"port": "443",
-				"id": "${v2ray_id}",
-				"aid": "${alterId}",
-				"net": "${net}",
-				"type": "none",
-				"host": "${domain}",
-				"path": "$_path",
-				"tls": "tls"
-			}
+		{
+			"v": "2",
+			"ps": "233v2.com_${domain}",
+			"add": "${domain}",
+			"port": "443",
+			"id": "${v2ray_id}",
+			"aid": "${alterId}",
+			"net": "${net}",
+			"type": "none",
+			"host": "${domain}",
+			"path": "$_path",
+			"tls": "tls"
+		}
 		EOF
 	else
 		[[ -z $ip ]] && get_ip
 		cat >/etc/v2ray/vmess_qr.json <<-EOF
-			{
-				"v": "2",
-				"ps": "233v2.com_${ip}",
-				"add": "${ip}",
-				"port": "${v2ray_port}",
-				"id": "${v2ray_id}",
-				"aid": "${alterId}",
-				"net": "${net}",
-				"type": "${header}",
-				"host": "${host}",
-				"path": "",
-				"tls": ""
-			}
+		{
+			"v": "2",
+			"ps": "233v2.com_${ip}",
+			"add": "${ip}",
+			"port": "${v2ray_port}",
+			"id": "${v2ray_id}",
+			"aid": "${alterId}",
+			"net": "${net}",
+			"type": "${header}",
+			"host": "${host}",
+			"path": "",
+			"tls": ""
+		}
 		EOF
 	fi
 }
@@ -301,6 +301,7 @@ shadowsocks_config() {
 			shadowsocks_password_config
 			shadowsocks_ciphers_config
 			pause
+			open_port $new_ssport
 			backup_config +ss
 			ssport=$new_ssport
 			sspass=$new_sspass
@@ -336,7 +337,7 @@ shadowsocks_port_config() {
 			error
 			;;
 		[1-9] | [1-9][0-9] | [1-9][0-9][0-9] | [1-9][0-9][0-9][0-9] | [1-5][0-9][0-9][0-9][0-9] | 6[0-4][0-9][0-9][0-9] | 65[0-4][0-9][0-9] | 655[0-3][0-5])
-			if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]]; then
+			if [[ $v2ray_transport == [45] ]]; then
 				local tls=ture
 			fi
 			if [[ $tls && $new_ssport == "80" ]] || [[ $tls && $new_ssport == "443" ]]; then
@@ -454,7 +455,7 @@ change_shadowsocks_port() {
 			error
 			;;
 		[1-9] | [1-9][0-9] | [1-9][0-9][0-9] | [1-9][0-9][0-9][0-9] | [1-5][0-9][0-9][0-9][0-9] | 6[0-4][0-9][0-9][0-9] | 65[0-4][0-9][0-9] | 655[0-3][0-5])
-			if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]]; then
+			if [[ $v2ray_transport == [45] ]]; then
 				local tls=ture
 			fi
 			if [[ $tls && $new_ssport == "80" ]] || [[ $tls && $new_ssport == "443" ]]; then
@@ -487,6 +488,8 @@ change_shadowsocks_port() {
 				echo
 				pause
 				backup_config ssport
+				del_port $ssport
+				open_port $new_ssport
 				ssport=$new_ssport
 				config
 				clear
@@ -598,6 +601,7 @@ disable_shadowsocks() {
 			echo
 			pause
 			backup_config -ss
+			del_port $ssport
 			shadowsocks=''
 			config
 			# clear
@@ -753,6 +757,8 @@ change_v2ray_port() {
 					echo
 					pause
 					backup_config v2ray_port
+					del_port $v2ray_port
+					open_port $v2ray_port_opt
 					v2ray_port=$v2ray_port_opt
 					config
 					clear
@@ -832,7 +838,7 @@ change_v2ray_transport() {
 				echo " 哎呀...跟当前传输协议一毛一样呀...修改个鸡鸡哦"
 				error
 				;;
-			4 | 5 | 33)
+			4 | 5)
 				if [[ $v2ray_port == "80" || $v2ray_port == "443" ]]; then
 					echo
 					echo -e " 抱歉...如果你想要使用${cyan} ${transport[$v2ray_transport_opt - 1]} $none传输协议.. ${red}V2Ray 端口不能为 80 或者 443 ...$none"
@@ -866,7 +872,7 @@ change_v2ray_transport() {
 					break
 				fi
 				;;
-			[1-9] | [1-2][0-9] | 3[0-3])
+			[1-9] | [1-2][0-9] | 3[0-2])
 				echo
 				echo
 				echo -e "$yellow V2Ray 传输协议 = $cyan${transport[$v2ray_transport_opt - 1]}$none"
@@ -883,13 +889,14 @@ change_v2ray_transport() {
 	done
 	pause
 
-	if [[ $v2ray_transport_opt == [45] || $v2ray_transport_opt == 33 ]]; then
+	if [[ $v2ray_transport_opt == [45] ]]; then
 		tls_config
-	elif [[ $v2ray_transport_opt -ge 18 && $v2ray_transport_opt -ne 33 ]]; then
+	elif [[ $v2ray_transport_opt -ge 18 ]]; then
 		v2ray_dynamic_port_start
 		v2ray_dynamic_port_end
 		pause
 		old_transport
+		open_port "multiport"
 		backup_config v2ray_transport v2ray_dynamicPort_start v2ray_dynamicPort_end
 		port_range="${v2ray_dynamic_port_start_input}-${v2ray_dynamic_port_end_input}"
 		v2ray_transport=$v2ray_transport_opt
@@ -909,7 +916,9 @@ change_v2ray_transport() {
 
 }
 old_transport() {
-	if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]]; then
+	if [[ $v2ray_transport == [45] ]]; then
+		del_port "80"
+		del_port "443"
 		if [[ $caddy && $caddy_pid ]]; then
 			do_service stop caddy
 			if [[ $systemd ]]; then
@@ -927,6 +936,8 @@ old_transport() {
 		if [[ $is_path ]]; then
 			backup_config -path
 		fi
+	elif [[ $v2ray_transport -ge 18 ]]; then
+		del_port "multiport"
 	fi
 }
 
@@ -935,7 +946,7 @@ tls_config() {
 		echo
 		echo
 		echo
-		echo -e "请输入一个 ${magenta}正确的域名${none}，一定一定一定要正确，不！能！出！错！"
+		echo -e "请输入一个 $magenta正确的域名$none，一定一定一定要正确，不！能！出！错！"
 		read -p "(例如：233blog.com): " new_domain
 		[ -z "$new_domain" ] && error && continue
 		echo
@@ -947,11 +958,11 @@ tls_config() {
 	get_ip
 	echo
 	echo
-	echo -e "$yellow 请将 $magenta$new_domain$none $yellow 解析到: $cyan$ip$none"
+	echo -e "$yellow 请将 $magenta$new_domain$none $yellow解析到: $cyan$ip$none"
 	echo
-	echo -e "$yellow 请将 $magenta$new_domain$none $yellow 解析到: $cyan$ip$none"
+	echo -e "$yellow 请将 $magenta$new_domain$none $yellow解析到: $cyan$ip$none"
 	echo
-	echo -e "$yellow 请将 $magenta$new_domain$none $yellow 解析到: $cyan$ip$none"
+	echo -e "$yellow 请将 $magenta$new_domain$none $yellow解析到: $cyan$ip$none"
 	echo "----------------------------------------------------------------"
 	echo
 
@@ -988,8 +999,13 @@ tls_config() {
 			is_path=true
 		fi
 
+		if [[ $v2ray_transport -ge 18 ]]; then
+			del_port "multiport"
+		fi
 		domain=$new_domain
 
+		open_port "80"
+		open_port "443"
 		if [[ $systemd ]]; then
 			systemctl enable caddy >/dev/null 2>&1
 		else
@@ -1002,7 +1018,7 @@ tls_config() {
 		view_v2ray_config_info
 		# download_v2ray_config_ask
 	else
-		if [[ $v2ray_transport_opt -ne 4 ]]; then
+		if [[ $v2ray_transport_opt == 5 ]]; then
 			path_config_ask
 			pause
 			domain_check
@@ -1013,8 +1029,13 @@ tls_config() {
 				proxy_site=$new_proxy_site
 				is_path=true
 			fi
+			if [[ $v2ray_transport -ge 18 ]]; then
+				del_port "multiport"
+			fi
 			domain=$new_domain
 			install_caddy
+			open_port "80"
+			open_port "443"
 			v2ray_transport=$v2ray_transport_opt
 			caddy_config
 			config
@@ -1064,8 +1085,13 @@ auto_tls_config() {
 					proxy_site=$new_proxy_site
 					is_path=true
 				fi
+				if [[ $v2ray_transport -ge 18 ]]; then
+					del_port "multiport"
+				fi
 				domain=$new_domain
 				install_caddy
+				open_port "80"
+				open_port "443"
 				v2ray_transport=$v2ray_transport_opt
 				caddy_config
 				config
@@ -1083,7 +1109,12 @@ auto_tls_config() {
 				pause
 				domain_check
 				backup_config v2ray_transport domain
+				if [[ $v2ray_transport -ge 18 ]]; then
+					del_port "multiport"
+				fi
 				domain=$new_domain
+				open_port "80"
+				open_port "443"
 				v2ray_transport=$v2ray_transport_opt
 				config
 				clear
@@ -1113,7 +1144,7 @@ path_config_ask() {
 		N | n)
 			echo
 			echo
-			echo -e "$yellow 网站伪装 和 路径分流 = $cyan 不想配置 $none"
+			echo -e "$yellow 网站伪装 和 路径分流 = $cyan不想配置$none"
 			echo "----------------------------------------------------------------"
 			echo
 			break
@@ -1127,7 +1158,7 @@ path_config_ask() {
 path_config() {
 	echo
 	while :; do
-		echo -e "请输入想要 ${magenta}用来分流的路径 $none , 例如 /233blog , 那么只需要输入 233blog 即可"
+		echo -e "请输入想要 ${magenta}用来分流的路径$none , 例如 /233blog , 那么只需要输入 233blog 即可"
 		read -p "$(echo -e "(默认: [${cyan}233blog$none]):")" new_path
 		[[ -z $new_path ]] && new_path="233blog"
 
@@ -1153,7 +1184,7 @@ path_config() {
 proxy_site_config() {
 	echo
 	while :; do
-		echo -e "请输入 ${magenta}一个正确的 $none ${cyan}网址$none 用来作为 ${cyan}网站的伪装$none , 例如 https://liyafly.com"
+		echo -e "请输入 ${magenta}一个正确的$none ${cyan}网址$none 用来作为 ${cyan}网站的伪装$none , 例如 https://liyafly.com"
 		echo -e "举例...假设你当前的域名是$green $domain $none, 伪装的网址的是 https://liyafly.com"
 		echo -e "然后打开你的域名时候...显示出来的内容就是来自 https://liyafly.com 的内容"
 		echo -e "其实就是一个反代...明白就好..."
@@ -1309,10 +1340,12 @@ v2ray_dynamic_port_end() {
 
 }
 change_v2ray_dynamicport() {
-	if [[ $v2ray_transport -ge 18 && $v2ray_transport -ne 33 ]]; then
+	if [[ $v2ray_transport -ge 18 ]]; then
 		change_v2ray_dynamic_port_start
 		change_v2ray_dynamic_port_end
 		pause
+		del_port "multiport"
+		open_port "multiport"
 		backup_config v2ray_dynamicPort_start v2ray_dynamicPort_end
 		port_range="${v2ray_dynamic_port_start_input}-${v2ray_dynamic_port_end_input}"
 		config
@@ -1501,10 +1534,10 @@ change_v2ray_id() {
 	done
 }
 change_domain() {
-	if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy ]]; then
+	if [[ $v2ray_transport == [45] ]] && [[ $caddy ]]; then
 		while :; do
 			echo
-			echo -e "请输入一个 ${magenta}正确的域名${none}，一定一定一定要正确，不！能！出！错！"
+			echo -e "请输入一个 $magenta正确的域名$none，一定一定一定要正确，不！能！出！错！"
 			read -p "$(echo -e "(当前域名: ${cyan}$domain$none):") " new_domain
 			[ -z "$new_domain" ] && error && continue
 			if [[ $new_domain == $domain ]]; then
@@ -1522,11 +1555,11 @@ change_domain() {
 		get_ip
 		echo
 		echo
-		echo -e "$yellow 请将 $magenta$new_domain$none $yellow 解析到: $cyan$ip$none"
+		echo -e "$yellow 请将 $magenta$new_domain$none $yellow解析到: $cyan$ip$none"
 		echo
-		echo -e "$yellow 请将 $magenta$new_domain$none $yellow 解析到: $cyan$ip$none"
+		echo -e "$yellow 请将 $magenta$new_domain$none $yellow解析到: $cyan$ip$none"
 		echo
-		echo -e "$yellow 请将 $magenta$new_domain$none $yellow 解析到: $cyan$ip$none"
+		echo -e "$yellow 请将 $magenta$new_domain$none $yellow解析到: $cyan$ip$none"
 		echo "----------------------------------------------------------------"
 		echo
 
@@ -1576,7 +1609,7 @@ change_domain() {
 	fi
 }
 change_path_config() {
-	if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy && $is_path ]]; then
+	if [[ $v2ray_transport == [45] ]] && [[ $caddy && $is_path ]]; then
 		echo
 		while :; do
 			echo -e "请输入想要 ${magenta}用来分流的路径$none , 例如 /233blog , 那么只需要输入 233blog 即可"
@@ -1614,7 +1647,7 @@ change_path_config() {
 		clear
 		view_v2ray_config_info
 		# download_v2ray_config_ask
-	elif [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy ]]; then
+	elif [[ $v2ray_transport == [45] ]] && [[ $caddy ]]; then
 		path_config_ask
 		if [[ $new_path ]]; then
 			backup_config +path
@@ -1652,10 +1685,10 @@ change_path_config() {
 
 }
 change_proxy_site_config() {
-	if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy && $is_path ]]; then
+	if [[ $v2ray_transport == [45] ]] && [[ $caddy && $is_path ]]; then
 		echo
 		while :; do
-			echo -e "请输入 ${magenta}一个正确的 $none ${cyan}网址$none 用来作为 ${cyan}网站的伪装$none , 例如 https://liyafly.com"
+			echo -e "请输入 ${magenta}一个正确的$none ${cyan}网址$none 用来作为 ${cyan}网站的伪装$none , 例如 https://liyafly.com"
 			echo -e "举例...你当前的域名是$green $domain $none, 伪装的网址的是 https://liyafly.com"
 			echo -e "然后打开你的域名时候...显示出来的内容就是来自 https://liyafly.com 的内容"
 			echo -e "其实就是一个反代...明白就好..."
@@ -1691,7 +1724,7 @@ change_proxy_site_config() {
 		echo -e " 赶紧打开你的域名 ${cyan}https://${domain}$none 检查一下看看"
 		echo
 		echo
-	elif [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy ]]; then
+	elif [[ $v2ray_transport == [45] ]] && [[ $caddy ]]; then
 		path_config_ask
 		if [[ $new_path ]]; then
 			backup_config +path
@@ -1747,7 +1780,7 @@ domain_check() {
 	fi
 }
 disable_path() {
-	if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy && $is_path ]]; then
+	if [[ $v2ray_transport == [45] ]] && [[ $caddy && $is_path ]]; then
 		echo
 
 		while :; do
@@ -2168,35 +2201,7 @@ create_v2ray_config_text() {
 		echo
 		echo "路径 (path) = ${_path}"
 		echo
-		echo "底层传输安全 (TLS) = tls"
-		echo
-		if [[ $ban_ad ]]; then
-			echo " 备注: 广告拦截已开启.."
-			echo
-		fi
-	elif [[ $v2ray_transport == 33 ]]; then
-		echo
-		echo '---提示..这是 VLESS 服务器配置---'
-		echo
-		echo "地址 (Address) = ${domain}"
-		echo
-		echo "端口 (Port) = 443"
-		echo
-		echo "用户ID (User ID / UUID) = ${v2ray_id}"
-		echo
-		echo "流控 (Flow) = 空"
-		echo
-		echo "加密 (Encryption) = none"
-		echo
-		echo "传输协议 (Network) = ${net}"
-		echo
-		echo "伪装类型 (header type) = ${header}"
-		echo
-		echo "伪装域名 (host) = ${domain}"
-		echo
-		echo "路径 (path) = ${_path}"
-		echo
-		echo "底层传输安全 (TLS) = tls"
+		echo "TLS (Enable TLS) = 打开"
 		echo
 		if [[ $ban_ad ]]; then
 			echo " 备注: 广告拦截已开启.."
@@ -2218,10 +2223,10 @@ create_v2ray_config_text() {
 		echo "伪装类型 (header type) = ${header}"
 		echo
 	fi
-	if [[ $v2ray_transport -ge 18 && $v2ray_transport -ne 33 ]] && [[ $ban_ad ]]; then
+	if [[ $v2ray_transport -ge 18 ]] && [[ $ban_ad ]]; then
 		echo "备注: 动态端口已启用...广告拦截已开启..."
 		echo
-	elif [[ $v2ray_transport -ge 18 && $v2ray_transport -ne 33 ]]; then
+	elif [[ $v2ray_transport -ge 18 ]]; then
 		echo "备注: 动态端口已启用..."
 		echo
 	elif [[ $ban_ad ]]; then
@@ -2273,8 +2278,6 @@ get_v2ray_vmess_URL_link() {
 	echo "---------- V2Ray vmess URL / V2RayNG v0.4.1+ / V2RayN v2.1+ / 仅适合部分客户端 -------------"
 	echo
 	echo -e ${cyan}$vmess${none}
-	echo
-	echo -e "${yellow}免被墙..推荐使用JMS: ${cyan}https://getjms.com${none}"
 	echo
 	rm -rf /etc/v2ray/vmess_qr.json
 }
@@ -2337,6 +2340,79 @@ uninstall_lotserver() {
 	rm -rf /tmp/appex.sh
 }
 
+open_port() {
+	if [[ $cmd == "apt-get" ]]; then
+		if [[ $1 != "multiport" ]]; then
+			# if [[ $cmd == "apt-get" ]]; then
+			iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport $1 -j ACCEPT
+			iptables -I INPUT -m state --state NEW -m udp -p udp --dport $1 -j ACCEPT
+			ip6tables -I INPUT -m state --state NEW -m tcp -p tcp --dport $1 -j ACCEPT
+			ip6tables -I INPUT -m state --state NEW -m udp -p udp --dport $1 -j ACCEPT
+
+			# iptables-save >/etc/iptables.rules.v4
+			# ip6tables-save >/etc/iptables.rules.v6
+			# else
+			# 	firewall-cmd --permanent --zone=public --add-port=$1/tcp
+			# 	firewall-cmd --permanent --zone=public --add-port=$1/udp
+			# 	firewall-cmd --reload
+			# fi
+		else
+			# if [[ $cmd == "apt-get" ]]; then
+			local multiport="${v2ray_dynamic_port_start_input}:${v2ray_dynamic_port_end_input}"
+			iptables -I INPUT -p tcp --match multiport --dports $multiport -j ACCEPT
+			iptables -I INPUT -p udp --match multiport --dports $multiport -j ACCEPT
+			ip6tables -I INPUT -p tcp --match multiport --dports $multiport -j ACCEPT
+			ip6tables -I INPUT -p udp --match multiport --dports $multiport -j ACCEPT
+
+			# iptables-save >/etc/iptables.rules.v4
+			# ip6tables-save >/etc/iptables.rules.v6
+			# else
+			# 	local multi_port="${v2ray_dynamic_port_start_input}-${v2ray_dynamic_port_end_input}"
+			# 	firewall-cmd --permanent --zone=public --add-port=$multi_port/tcp
+			# 	firewall-cmd --permanent --zone=public --add-port=$multi_port/udp
+			# 	firewall-cmd --reload
+			# fi
+		fi
+		iptables-save >/etc/iptables.rules.v4
+		ip6tables-save >/etc/iptables.rules.v6
+		# else
+		# 	service iptables save >/dev/null 2>&1
+		# 	service ip6tables save >/dev/null 2>&1
+	fi
+
+}
+del_port() {
+	if [[ $cmd == "apt-get" ]]; then
+		if [[ $1 != "multiport" ]]; then
+			# if [[ $cmd == "apt-get" ]]; then
+			iptables -D INPUT -m state --state NEW -m tcp -p tcp --dport $1 -j ACCEPT
+			iptables -D INPUT -m state --state NEW -m udp -p udp --dport $1 -j ACCEPT
+			ip6tables -D INPUT -m state --state NEW -m tcp -p tcp --dport $1 -j ACCEPT
+			ip6tables -D INPUT -m state --state NEW -m udp -p udp --dport $1 -j ACCEPT
+			# else
+			# 	firewall-cmd --permanent --zone=public --remove-port=$1/tcp
+			# 	firewall-cmd --permanent --zone=public --remove-port=$1/udp
+			# fi
+		else
+			# if [[ $cmd == "apt-get" ]]; then
+			local ports="${v2ray_dynamicPort_start}:${v2ray_dynamicPort_end}"
+			iptables -D INPUT -p tcp --match multiport --dports $ports -j ACCEPT
+			iptables -D INPUT -p udp --match multiport --dports $ports -j ACCEPT
+			ip6tables -D INPUT -p tcp --match multiport --dports $ports -j ACCEPT
+			ip6tables -D INPUT -p udp --match multiport --dports $ports -j ACCEPT
+			# else
+			# 	local ports="${v2ray_dynamicPort_start}-${v2ray_dynamicPort_end}"
+			# 	firewall-cmd --permanent --zone=public --remove-port=$ports/tcp
+			# 	firewall-cmd --permanent --zone=public --remove-port=$ports/udp
+			# fi
+		fi
+		iptables-save >/etc/iptables.rules.v4
+		ip6tables-save >/etc/iptables.rules.v6
+		# else
+		# 	service iptables save >/dev/null 2>&1
+		# 	service ip6tables save >/dev/null 2>&1
+	fi
+}
 update() {
 	while :; do
 		echo
@@ -2540,7 +2616,7 @@ error() {
 
 pause() {
 
-	read -rsp "$(echo -e "按 $green Enter 回车键 $none 继续....或按 $red Ctrl + C $none 取消.")" -d $'\n'
+	read -rsp "$(echo -e "按$green Enter 回车键 $none继续....或按$red Ctrl + C $none取消.")" -d $'\n'
 	echo
 }
 do_service() {
@@ -2601,7 +2677,7 @@ menu() {
 		echo
 		echo "反馈问题: https://github.com/233boy/v2ray/issues"
 		echo
-		echo "TG 频道: https://t.me/tg2333"
+		echo "TG 群组: https://t.me/blog233"
 		echo
 		echo "捐赠脚本作者: https://233v2.com/donate/"
 		echo
@@ -2708,12 +2784,6 @@ L | infolink)
 	get_v2ray_config_info_link
 	;;
 q | qr)
-	if [[ $v2ray_transport == 33 ]]; then
-		echo
-		echo ' V2RAY VLESS 协议相关暂不支持生成 ....'
-		echo
-		exit
-	fi
 	get_v2ray_config_qr_link
 	;;
 s | ss)
@@ -2747,7 +2817,7 @@ bt)
 	;;
 status)
 	echo
-	if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy ]]; then
+	if [[ $v2ray_transport == [45] && $caddy ]]; then
 		echo -e " V2Ray 状态: $v2ray_status  /  Caddy 状态: $caddy_run_status"
 	else
 		echo -e " V2Ray 状态: $v2ray_status"
@@ -2761,16 +2831,12 @@ stop)
 	stop_v2ray
 	;;
 restart)
-	if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy ]]; then
-		do_service restart caddy
-	fi
+	[[ $v2ray_transport == [45] && $caddy ]] && do_service restart caddy
 	restart_v2ray
 	;;
 reload)
 	config
-	if [[ $v2ray_transport == [45] || $v2ray_transport == 33 ]] && [[ $caddy ]]; then
-		caddy_config
-	fi
+	[[ $v2ray_transport == [45] && $caddy ]] && caddy_config
 	clear
 	view_v2ray_config_info
 	;;
@@ -2781,12 +2847,6 @@ log)
 	view_v2ray_log
 	;;
 url | URL)
-	if [[ $v2ray_transport == 33 ]]; then
-		echo
-		echo ' V2RAY VLESS 协议相关暂不支持生成 URL ....'
-		echo
-		exit
-	fi
 	get_v2ray_vmess_URL_link
 	;;
 u | update)
@@ -2804,13 +2864,13 @@ reinstall)
 	if [[ $is_uninstall_v2ray ]]; then
 		cd
 		cd - >/dev/null 2>&1
-		bash <(curl -s -L https://raw.githubusercontent.com/bejiba/233boy-v2ray-backup/master/v2ray.sh)
+		bash <(curl -s -L https://raw.githubusercontent.com/bejiba/233boy-v2ray-backup/master/install.sh)
 	fi
 	;;
 [aA][Ii] | [Dd])
 	change_v2ray_alterId
 	;;
-[aA][Ii][aA][Ii] | [Dd][Dd] | aid)
+[aA][Ii][aA][Ii] | [Dd][Dd])
 	custom_uuid
 	;;
 reuuid)
